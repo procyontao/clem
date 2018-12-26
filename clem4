@@ -1,0 +1,76 @@
+#!/usr/bin/env python
+'''
+Created on Dec.26, 2013
+
+@author: Yuntao
+'''
+
+
+import numpy as np
+from subprocess import *
+import sys
+
+
+
+f=open(sys.argv[1],'r')
+points=f.read()
+f.close()
+points=points.replace(',',' ').split()
+points=np.asarray(points,dtype='float32')
+lenpoints=len(points)
+points=points.reshape(lenpoints/2,2)
+points=points.reshape(2,lenpoints/4,2)
+one=np.ones((lenpoints/4,1),dtype='float32')
+A=np.hstack((points[1],one),)
+B1=points[0][:,0]
+B2=points[0][:,1]
+res1=np.linalg.lstsq(A,B1)
+res2=np.linalg.lstsq(A,B2)
+
+
+s='model2point '+sys.argv[2]+' inputsynapse.point'
+call(s,shell=True)
+
+f=open("inputsynapse.point",'r')
+#f=open("corr.point",'r')
+inputs=f.read()
+f.close()
+
+inputs=inputs.split()
+inputs=np.asarray(inputs,dtype='int16')
+leninputs=len(inputs)
+inputs=inputs.reshape(leninputs/3,3)
+f=open('EM_Coordinate.txt','w')
+num=1
+xylist=[]
+for inputpoint in inputs:
+	x=res1[0][0]*inputpoint[0]+res1[0][1]*inputpoint[1]+res1[0][2]
+	xylist.append(x)
+	y=res2[0][0]*inputpoint[0]+res2[0][1]*inputpoint[1]+res2[0][2]
+	xylist.append(y)
+	f.write(str(x)+'\t'+str(y)+'\t'+str(inputpoint[2])+'\t'+str(num)+'\n')
+	num=num+1
+f.close()
+
+from writest2 import writest2
+writest2(xylist,'synapse.st2',z=float(sys.argv[3]))
+
+f=open("tramsform.log","w")
+f.write("\nsum of squared residuals:\n X "+str(res1[1][0])+" Y "+str(res2[1][0])+"\n\n")
+f.write("averaged residuals:\n X "+str((res1[1][0]/lenpoints/6)**0.5)+" Y "+str((res2[1][0]/lenpoints/6)**0.5)+"\n\n")
+f.write("R squared:\n X "+str(1-res1[1][0]/(B1.size*B1.var()))+"   Y "+str(1-res2[1][0]/(B2.size*B2.var()))+"\n\n")
+f.close()
+
+
+
+
+#s="newstack -xform transform.xg "+sys.argv[1]+" "+sys.argv[3]
+#call(s,shell=True)
+#s="mrc2tif -s 3.mrc 3"
+#call(s,shell=True)
+#s="rm corr.point"
+#call(s,shell=True)
+
+#print "sum of squared residuals X "+str(res1[1])+" Y "+str(res2[1])+"\n\n"
+#print "averaged residuals X "+str((res1[1]/lenpoints/6)**0.5)+" Y "+str((res2[1]/lenpoints/6)**0.5)+"\n\n"
+#print "R squared X "+str(1-res1[1]/(B1.size*B1.var()))+"   Y "+str(1-res2[1]/(B2.size*B2.var()))+"\n\n"
